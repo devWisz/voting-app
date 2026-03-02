@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VoteChain — Solana On-Chain Voting</title>
+
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css"/>
+
+  <!--
+    Solana Web3.js — loaded first so all JS files can use `solanaWeb3`
+    Source: https://github.com/solana-labs/solana-web3.js
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+</head>
+
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     TOAST NOTIFICATIONS
+════════════════════════════════════════════════════════════ -->
+<div id="toast-box" aria-live="polite" aria-atomic="false"></div>
+
+<!-- ════════════════════════════════════════════════════════════
+     HEADER
+════════════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="wrap">
+    <div class="header-row">
+
+      <a class="logo" href="#">
+        <div class="logo-badge">🗳</div>
+        Vote<em>Chain</em>
+      </a>
+
+      <div class="header-meta">
+        <span class="net-pill">Devnet</span>
+        <button class="btn-wallet" id="wallet-btn" onclick="onConnectWallet()">
+          <span class="dot"></span>
+          Connect Wallet
+        </button>
+      </div>
+
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════
+     MAIN
+════════════════════════════════════════════════════════════ -->
+<main class="site-main">
+  <div class="wrap">
+
+    <!-- ── HERO ──────────────────────────────────────────── -->
+    <section class="hero">
+
+      <div class="hero-copy">
+        <h1>On-chain<br/><em>Governance.</em></h1>
+        <p>
+          A fully decentralised voting system built on Solana.
+          Register candidates, enrol voters, and cast ballots —
+          every action is a real transaction on the Anchor program.
+        </p>
+      </div>
+
+      <!-- Live stat counters (updated from chain) -->
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-n" id="stat-candidates">0</span>
+          <div class="stat-l">Candidates</div>
+        </div>
+        <div class="stat">
+          <span class="stat-n" id="stat-voters">0</span>
+          <div class="stat-l">Voters</div>
+        </div>
+        <div class="stat">
+          <span class="stat-n" id="stat-total-votes">0</span>
+          <div class="stat-l">Votes Cast</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── WALLET STATUS ALERT ───────────────────────────── -->
+    <div id="status-bar"></div>
+
+    <div class="divider"></div>
+
+    <!-- ════════════════════════════════════════════════════
+         PAGE-LEVEL TABS
+    ════════════════════════════════════════════════════ -->
+    <div class="tabs">
+      <button class="tab-btn active" data-panel="panel-app">
+        🗳️ &nbsp;Voting App
+      </button>
+      <button class="tab-btn" data-panel="panel-program">
+        ⚓ &nbsp;Program
+      </button>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         TAB 1 — VOTING APP
+    ════════════════════════════════════════════════════ -->
+    <div class="tab-panel active" id="panel-app">
+
+      <!-- ── REGISTRATION ──────────────────────────────── -->
+      <div class="sec-label">Registration</div>
+
+      <div class="grid-2" style="margin-bottom:28px">
+
+        <!-- Register Candidate -->
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Register Candidate</h2>
+            <span class="card-num">01</span>
+          </div>
+
+          <div class="field">
+            <label for="inp-cname">Candidate Name</label>
+            <input id="inp-cname" type="text"
+                   placeholder="e.g. Alice Johnson"
+                   maxlength="20" autocomplete="off"/>
+            <div class="field-hint">Max 20 characters — stored on-chain</div>
+          </div>
+
+          <div class="field">
+            <label for="inp-party">Party Name</label>
+            <input id="inp-party" type="text"
+                   placeholder="e.g. Green Future"
+                   maxlength="20" autocomplete="off"/>
+            <div class="field-hint">Max 20 characters</div>
+          </div>
+
+          <button class="btn btn-green"
+                  id="btn-reg-candidate"
+                  onclick="onRegisterCandidate()">
+            Register Candidate
+          </button>
+        </div>
+
+        <!-- Register Voter -->
+        <div class="card">
+          <div class="card-head">
+            <h2 class="card-title">Register as Voter</h2>
+            <span class="card-num">02</span>
+          </div>
+
+          <div class="field">
+            <label for="inp-vname">Your Name</label>
+            <input id="inp-vname" type="text"
+                   placeholder="e.g. Bob Smith"
+                   maxlength="20" autocomplete="off"/>
+            <div class="field-hint">Max 20 characters</div>
+          </div>
+
+          <div class="alert alert-info" style="margin-bottom:14px">
+            <span class="alert-icon">ℹ</span>
+            <span>
+              Each wallet registers once. Your public key is stored
+              on-chain as your voter ID to enforce single-vote integrity.
+            </span>
+          </div>
+
+          <button class="btn btn-blue"
+                  id="btn-reg-voter"
+                  onclick="onRegisterVoter()">
+            Register as Voter
+          </button>
+        </div>
+
+      </div><!-- /grid-2 registration -->
+
+      <!-- ── CAST VOTE ──────────────────────────────────── -->
+      <div class="sec-label">Cast Your Vote</div>
+
+      <div class="card" style="margin-bottom:28px">
+        <div class="card-head">
+          <h2 class="card-title">Active Candidates</h2>
+          <span class="card-num">03</span>
+        </div>
+
+        <!-- Candidate list — rendered by ui.js -->
+        <div id="candidates-list" class="candidates-list">
+          <div class="empty">
+            <span class="empty-icon">🗳️</span>
+            Connect your wallet to load candidates from chain.
+          </div>
+        </div>
+
+        <div style="margin-top:20px">
+          <button class="btn btn-amber"
+                  id="btn-cast-vote"
+                  onclick="onCastVote()"
+                  disabled
+                  style="max-width:280px">
+            Cast Vote
+          </button>
+          <div class="field-hint" style="margin-top:8px">
+            Select a candidate, then click Cast Vote.
+            Each wallet may only vote once.
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TRANSACTION LOG ────────────────────────────── -->
+      <div class="sec-label">Transaction Log</div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2 class="card-title">Recent Transactions</h2>
+          <a class="footer-link"
+             href="https://explorer.solana.com?cluster=devnet"
+             target="_blank" rel="noopener">
+            Open Explorer ↗
+          </a>
+        </div>
+        <div id="tx-log" class="tx-log">
+          <div class="empty" style="padding:12px 0;text-align:left;font-size:11px">
+            Transactions will appear here after interacting with the program.
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /panel-app -->
+
+    <!-- ════════════════════════════════════════════════════
+         TAB 2 — PROGRAM
+         Rendered lazily by program-viewer.js on first click
+    ════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="panel-program">
+      <div id="program-content">
+        <div class="empty" style="padding:60px 0">
+          <span class="empty-icon">⚓</span>
+          Click the Program tab to load source &amp; docs.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-row">
+      <span class="footer-copy">
+        VoteChain &mdash; Anchor program
+        <code style="font-size:10px">ArJc7rF…wiWd</code>
+        on Solana Devnet
+      </span>
+      <div class="footer-links">
+        <a class="footer-link"
+           href="https://explorer.solana.com/address/ArJc7rF9ygzDCeUxu3Vf4QKbHfixs6rvUAZcHtQ3wiWd?cluster=devnet"
+           target="_blank" rel="noopener">View Program ↗</a>
+        <a class="footer-link"
+           href="https://phantom.app"
+           target="_blank" rel="noopener">Get Phantom ↗</a>
+        <a class="footer-link"
+           href="https://www.anchor-lang.com/docs/installation"
+           target="_blank" rel="noopener">Anchor Docs ↗</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ════════════════════════════════════════════════════════════
+     SCRIPTS
+     Load order is important — each file depends on the one above.
+     1. config.js        → CFG constants (used everywhere)
+     2. solana.js        → Solana helpers (uses CFG)
+     3. ui.js            → DOM helpers (uses CFG + explorerTx from solana.js)
+     4. app.js           → Action handlers (uses solana.js + ui.js)
+     5. program-data.js  → Static strings for Program tab
+     6. program-viewer.js → Renders Program tab (uses program-data.js)
+════════════════════════════════════════════════════════════ -->
+<script src="js/config.js"></script>
+<script src="js/solana.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script src="js/program-data.js"></script>
+<script src="js/program-viewer.js"></script>
+
+</body>
+</html>
+
